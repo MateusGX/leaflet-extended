@@ -1,6 +1,6 @@
 {
   "name": "leaflet-extended",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "dependencies": {
     "leaflet": "^1.7.1",
@@ -25,7 +25,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "publish:npm": "rm -rf dist && mkdir dist &&  babel src/components -d dist --copy-files",
+    "publish:npm": "mkdir dist &&  babel src/components -d dist --copy-files",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
