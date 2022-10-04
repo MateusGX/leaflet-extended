@@ -1,19 +1,28 @@
 {
   "name": "leaflet-extended",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "dependencies": {
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "leaflet": "^1.7.1",
+    "lodash": "^4.17.21",
+    "nanoid": "^4.0.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-leaflet": "^2.8.0",
+    "react-leaflet-markercluster": "^2.0.0",
     "react-scripts": "5.0.1",
+    "react-select": "^5.4.0",
     "web-vitals": "^2.1.4"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-react"
+    ]
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "publish:npm": "rm -rf dist && mkdir dist &&  babel src/components -d dist --copy-files",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -34,5 +43,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.19.3",
+    "@babel/preset-react": "^7.18.6"
   }
 }
