@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from "react";
 import PropTypes from 'prop-types';
 import { Map, TileLayer, LayersControl, GeoJSON, Popup } from 'react-leaflet'
@@ -5,15 +6,18 @@ import _ from 'lodash';
 import L from 'leaflet';
 import Select from 'react-select'
 import { nanoid } from 'nanoid';
-import PopupSelector from "../internal/PopupSelector";
+import MarkerClusterGroup from 'react-leaflet-markercluster';
+import PopupSelector from "./internal/PopupSelector";
 import 'leaflet/dist/leaflet.css';
+import 'react-leaflet-markercluster/dist/styles.min.css';
 
-const MyComponent = ({ baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, enablePopup, multiIdentifier, children, latMarkerPropName, lngMarkerPropName }) => {
+const LeafletExtended = ({ baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, enablePopup, multiIdentifier, children, latMarkerPropName, lngMarkerPropName }) => {
 
   const [geoJSON, setGeoJSON] = useState(null);
   const [popupInfo, setPopupInfo] = useState(null);
   const [popupSelect, setPopupSelect] = useState(null);
 
+  const [bounds, setBounds] = useState([[-29.8258, -51.1481]]);
   const [mapLayer, setMapLayer] = useState(mapLayers.length > 0 ? mapLayers[0].label : null);
   const [mapFilter, setMapFilter] = useState(null);
 
@@ -50,9 +54,14 @@ const MyComponent = ({ baseTileUrl, baseTileAttribution, markerData, PopupConten
     setGeoJSON(geoJson);
   }, [latMarkerPropName, lngMarkerPropName, mapFilter, markerData, multiIdentifier]);
 
+  useEffect(() => {
+    setBounds(markerData.map(d => [d[latMarkerPropName], d[lngMarkerPropName]]));
+  }, [latMarkerPropName, lngMarkerPropName]);
+
   return (
     <Map
-      // preferCanvas
+      bounds={bounds}
+      preferCanvas
       center={[-29.8258, -51.1481]}
       zoom={16}
       style={{
@@ -111,7 +120,7 @@ const MyComponent = ({ baseTileUrl, baseTileAttribution, markerData, PopupConten
                       }}
                     >
                       <i style={{
-                        background: item.color, width: 20, height: 20
+                        background: item.color, width: 15, height: 15, borderRadius: '50%', border: '1px solid black'
                       }}
                       />
                       <p style={{ color: (mapFilter && mapFilter.action === item.action) ? 'grey' : 'black', margin: 0 }}>{item.label}</p>
@@ -147,26 +156,28 @@ const MyComponent = ({ baseTileUrl, baseTileAttribution, markerData, PopupConten
           mapLayers.map((e, index) => {
             return (
               <LayersControl.BaseLayer checked={mapLayer ? mapLayer === e.label : index === 0} name={e.label} key={nanoid()}>
-                <GeoJSON
-                  key={nanoid()}
-                  data={geoJSON}
-                  onclick={(e) => {
-                    const { sourceTarget } = e;
-                    const { feature } = sourceTarget;
-                    setPopupSelect({ value: feature.properties[0][multiIdentifier], label: feature.properties[0][multiIdentifier] });
-                    setPopupInfo(feature);
-                  }}
-                  pointToLayer={(geoPoint, latlng) => {
-                    return L.circleMarker(latlng, {
-                      stroke: false,
-                      opacity: 1,
-                      fillOpacity: 1,
-                      radius: 8,
-                      fillColor: "#ff7800",
-                    });
-                  }}
-                  style={e.style}
-                />
+                <MarkerClusterGroup disableClusteringAtZoom={15}>
+                  <GeoJSON
+                    key={nanoid()}
+                    data={geoJSON}
+                    onclick={(e) => {
+                      const { sourceTarget } = e;
+                      const { feature } = sourceTarget;
+                      setPopupSelect({ value: feature.properties[0][multiIdentifier], label: feature.properties[0][multiIdentifier] });
+                      setPopupInfo(feature);
+                    }}
+                    pointToLayer={(geoPoint, latlng) => {
+                      return L.circleMarker(latlng, {
+                        stroke: false,
+                        opacity: 1,
+                        fillOpacity: 1,
+                        radius: 8,
+                        fillColor: "#ff7800",
+                      });
+                    }}
+                    style={e.style}
+                  />
+                </MarkerClusterGroup>
               </LayersControl.BaseLayer>
             )
           })
@@ -216,7 +227,7 @@ const MyComponent = ({ baseTileUrl, baseTileAttribution, markerData, PopupConten
     </Map>);
 };
 
-MyComponent.propTypes = {
+LeafletExtended.propTypes = {
   baseTileUrl: PropTypes.string,
   mapLayers: PropTypes.array.isRequired,
   baseTileAttribution: PropTypes.string,
@@ -228,7 +239,7 @@ MyComponent.propTypes = {
   lngMarkerPropName: PropTypes.string,
 }
 
-MyComponent.defaultProps = {
+LeafletExtended.defaultProps = {
   baseTileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   baseTileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   markerData: [],
@@ -242,4 +253,4 @@ MyComponent.defaultProps = {
 }
 
 
-export default MyComponent;
+export default LeafletExtended;
