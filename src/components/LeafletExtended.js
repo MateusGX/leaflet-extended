@@ -1,7 +1,6 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle } from "react";
 import PropTypes from 'prop-types';
-import { Map, TileLayer, LayersControl, GeoJSON, Popup } from 'react-leaflet'
+import { Map as LeafletMap, TileLayer, LayersControl, GeoJSON, Popup } from 'react-leaflet'
 import _ from 'lodash';
 import L from 'leaflet';
 import Select from 'react-select'
@@ -11,7 +10,11 @@ import PopupSelector from "./internal/PopupSelector";
 import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-markercluster/dist/styles.min.css';
 
-const LeafletExtended = ({ baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, enablePopup, multiIdentifier, children, latMarkerPropName, lngMarkerPropName }) => {
+const LeafletExtended = forwardRef((props, ref) => {
+
+  const { baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, searchIdentifiers, enablePopup, multiIdentifier, children, circleMarkerStyle, latMarkerPropName, lngMarkerPropName } = props;
+
+  const mapRef = useRef();
 
   const [geoJSON, setGeoJSON] = useState(null);
   const [popupInfo, setPopupInfo] = useState(null);
@@ -20,6 +23,8 @@ const LeafletExtended = ({ baseTileUrl, baseTileAttribution, markerData, PopupCo
   const [bounds, setBounds] = useState([[-29.8258, -51.1481]]);
   const [mapLayer, setMapLayer] = useState(mapLayers.length > 0 ? mapLayers[0].label : null);
   const [mapFilter, setMapFilter] = useState(null);
+
+  const [searchElements, setSearchElements] = useState(new Map(searchIdentifiers.map(t => [t, new Map()])));
 
   useEffect(() => {
     if (markerData.length === 0) return;
@@ -30,6 +35,14 @@ const LeafletExtended = ({ baseTileUrl, baseTileAttribution, markerData, PopupCo
       }
       return false;
     });
+
+    const mapSearch = new Map(searchIdentifiers.map(t =>
+      [t,
+        new Map(filterResult.map((f, index) => [f[multiIdentifier], index]))
+      ]
+    ));
+
+    setSearchElements(mapSearch);
 
     const dataGroup = _.groupBy(filterResult, r => `${r[lngMarkerPropName]} / ${r[latMarkerPropName]}`);
     const dataGroupKeys = Object.keys(dataGroup);
@@ -52,14 +65,43 @@ const LeafletExtended = ({ baseTileUrl, baseTileAttribution, markerData, PopupCo
     };
 
     setGeoJSON(geoJson);
-  }, [latMarkerPropName, lngMarkerPropName, mapFilter, markerData, multiIdentifier]);
+  }, [latMarkerPropName, lngMarkerPropName, mapFilter, markerData, multiIdentifier, searchIdentifiers]);
 
   useEffect(() => {
     setBounds(markerData.map(d => [d[latMarkerPropName], d[lngMarkerPropName]]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latMarkerPropName, lngMarkerPropName]);
 
+  useImperativeHandle(ref, () => ({
+
+    async searchElement(search, value) {
+      if (!geoJSON) return false;
+      if (!searchIdentifiers.includes(search)) return false;
+      if (searchElements.get(search).size === 0) return false;
+      if (!searchElements.get(search).has(value)) return false;
+
+      const mapElement = geoJSON.features[searchElements.get(search).get(value)];
+
+      if (!mapElement) return false;
+
+      const { current = {} } = mapRef;
+      const { leafletElement: map } = current;
+      await map.flyTo([
+        mapElement.geometry.coordinates[1],
+        mapElement.geometry.coordinates[0]
+      ], 18, {
+        duration: 2
+      });
+      setPopupSelect({ value: mapElement.properties[0][multiIdentifier], label: mapElement.properties[0][multiIdentifier] });
+      setPopupInfo(mapElement);
+      return true;
+    }
+
+  }));
+
   return (
-    <Map
+    <LeafletMap
+      ref={mapRef}
       bounds={bounds}
       preferCanvas
       center={[-29.8258, -51.1481]}
@@ -167,13 +209,7 @@ const LeafletExtended = ({ baseTileUrl, baseTileAttribution, markerData, PopupCo
                       setPopupInfo(feature);
                     }}
                     pointToLayer={(geoPoint, latlng) => {
-                      return L.circleMarker(latlng, {
-                        stroke: false,
-                        opacity: 1,
-                        fillOpacity: 1,
-                        radius: 8,
-                        fillColor: "#ff7800",
-                      });
+                      return L.circleMarker(latlng, circleMarkerStyle);
                     }}
                     style={e.style}
                   />
@@ -224,14 +260,16 @@ const LeafletExtended = ({ baseTileUrl, baseTileAttribution, markerData, PopupCo
         </Popup>
       )}
       {children}
-    </Map>);
-};
+    </LeafletMap>);
+});
 
 LeafletExtended.propTypes = {
   baseTileUrl: PropTypes.string,
   mapLayers: PropTypes.array.isRequired,
   baseTileAttribution: PropTypes.string,
   markerData: PropTypes.arrayOf(PropTypes.object),
+  circleMarkerStyle: PropTypes.object,
+  searchIdentifiers: PropTypes.arrayOf(PropTypes.string),
   PopupContent: PropTypes.func,
   enablePopup: PropTypes.bool,
   multiIdentifier: PropTypes.string,
@@ -245,6 +283,14 @@ LeafletExtended.defaultProps = {
   markerData: [],
   multiIdentifier: 'name',
   enablePopup: true,
+  searchIdentifiers: [],
+  circleMarkerStyle: {
+    stroke: false,
+    opacity: 1,
+    fillOpacity: 1,
+    radius: 8,
+    fillColor: "#ff7800",
+  },
   PopupContent: ({ data }) => {
     return <div>- - -</div>
   },
