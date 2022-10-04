@@ -36,14 +36,6 @@ const LeafletExtended = forwardRef((props, ref) => {
       return false;
     });
 
-    const mapSearch = new Map(searchIdentifiers.map(t =>
-      [t,
-        new Map(filterResult.map((f, index) => [f[t], index]))
-      ]
-    ));
-
-    setSearchElements(mapSearch);
-
     const dataGroup = _.groupBy(filterResult, r => `${r[lngMarkerPropName]} / ${r[latMarkerPropName]}`);
     const dataGroupKeys = Object.keys(dataGroup);
 
@@ -59,18 +51,37 @@ const LeafletExtended = forwardRef((props, ref) => {
       properties: dataGroup[key],
     }));
 
+    const mapSearch = new Map(searchIdentifiers.map(t =>
+      [t,
+        new Map()
+      ]
+    ));
+
+    features.forEach((f, feature_index) => {
+      f.properties.forEach((p, prop_index) => {
+        searchIdentifiers.forEach(i => {
+          mapSearch.get(i).set(p[i], new Map([['feature_index', feature_index], ['prop_index', prop_index]]));
+        });
+      });
+    });
+
     const geoJson = {
       type: "FeatureCollection",
       features,
     };
 
     setGeoJSON(geoJson);
-  }, [latMarkerPropName, lngMarkerPropName, mapFilter, markerData, multiIdentifier, searchIdentifiers]);
+    setSearchElements(mapSearch);
+    console.log('map: update');
+  }, [latMarkerPropName, lngMarkerPropName, mapFilter, markerData, searchIdentifiers]);
 
   useEffect(() => {
+    if (markerData.length === 0) return;
+    if (geoJSON !== null) return;
     setBounds(markerData.map(d => [d[latMarkerPropName], d[lngMarkerPropName]]));
+    console.log('map: update-bounds');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latMarkerPropName, lngMarkerPropName]);
+  }, [latMarkerPropName, lngMarkerPropName, markerData]);
 
   useImperativeHandle(ref, () => ({
 
@@ -92,23 +103,32 @@ const LeafletExtended = forwardRef((props, ref) => {
         return false;
       }
 
-      const mapElement = geoJSON.features[searchElements.get(search).get(value)];
+      const searchResult = searchElements.get(search).get(value);
 
-      if (!mapElement) {
+      const mapFeature = geoJSON.features[searchResult.get('feature_index')];
+
+      if (!mapFeature) {
         console.log('search: no map element');
+        return false;
+      }
+
+      const mapPropResearched = mapFeature.properties[searchResult.get('prop_index')];
+
+      if (!mapPropResearched) {
+        console.log('search: no prop map element');
         return false;
       }
 
       const { current = {} } = mapRef;
       const { leafletElement: map } = current;
       await map.flyTo([
-        mapElement.geometry.coordinates[1],
-        mapElement.geometry.coordinates[0]
+        mapFeature.geometry.coordinates[1],
+        mapFeature.geometry.coordinates[0]
       ], 18, {
         duration: 2
       });
-      setPopupSelect({ value: mapElement.properties[0][multiIdentifier], label: mapElement.properties[0][multiIdentifier] });
-      setPopupInfo(mapElement);
+      setPopupSelect({ value: mapPropResearched[multiIdentifier], label: mapPropResearched[multiIdentifier] });
+      setPopupInfo(mapFeature);
       return true;
     }
 
@@ -314,4 +334,4 @@ LeafletExtended.defaultProps = {
 }
 
 
-export default LeafletExtended;
+export default React.memo(LeafletExtended);
