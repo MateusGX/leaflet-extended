@@ -38,7 +38,7 @@ const LeafletExtended = forwardRef((props, ref) => {
 
     const mapSearch = new Map(searchIdentifiers.map(t =>
       [t,
-        new Map(filterResult.map((f, index) => [f[multiIdentifier], index]))
+        new Map(filterResult.map((f, index) => [f[t], index]))
       ]
     ));
 
@@ -75,14 +75,29 @@ const LeafletExtended = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({
 
     async searchElement(search, value) {
-      if (!geoJSON) return false;
-      if (!searchIdentifiers.includes(search)) return false;
-      if (searchElements.get(search).size === 0) return false;
-      if (!searchElements.get(search).has(value)) return false;
+      if (!geoJSON) {
+        console.log('search: empty data');
+        return false;
+      }
+      if (!searchIdentifiers.includes(search)) {
+        console.log('search: identifier not found');
+        return false;
+      }
+      if (searchElements.get(search).size === 0) {
+        console.log('search: no data');
+        return false;
+      }
+      if (!searchElements.get(search).has(value)) {
+        console.log('search: no value');
+        return false;
+      }
 
       const mapElement = geoJSON.features[searchElements.get(search).get(value)];
 
-      if (!mapElement) return false;
+      if (!mapElement) {
+        console.log('search: no map element');
+        return false;
+      }
 
       const { current = {} } = mapRef;
       const { leafletElement: map } = current;
