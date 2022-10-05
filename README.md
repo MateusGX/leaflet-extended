@@ -1,70 +1,95 @@
-# Getting Started with Create React App
+# Leaflet Extended (React)
+![npm](https://img.shields.io/npm/v/leaflet-extended?style=for-the-badge)
+## A way to load and perform filters faster on API returns for maps
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Leaflet Extended is a mechanism that transforms your data into GeoJSON and transforms it into a faster and more dynamic map, with filters and layers that are much more practical to configure within React.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Easier and more optimized popups
+- Property based search
+- Dynamic and easy-to-configure Filters and Layers
+- Transformation of data into GeoJSON for easy handling and optimization
 
-### `npm start`
+## Tech
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+| Prop | Description | Optional | DataType | Default |
+| ------ | ------ | ------ | ------ | ------ |
+| baseTileUrl         |  | Yes | String | ```https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png``` |
+| baseTileAttribution |  | Yes | String | ```&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors``` |
+| mapLayers           | array of map layers | No | Layer Array Object | 
+| markerData          | array of data to be consumed | Yes | Data Array Object | ```[]``` |
+| circleMarkerStyle   | style for marker | Yes | Style | ```{ stroke: false, opacity: 1, fillOpacity: 1, radius: 8, fillColor: "#ff7800" }``` |
+| searchIdentifiers={['name', 'city']   | list of property names used in searches | Yes | String Array | ```[]``` |
+| PopupContent        | popup content | Yes | Popup Content | ```html``` |
+| enablePopup         | enable or disable popups | Yes | Boolean | ```true``` |
+| multiIdentifier     | unique identifier property name | Yes | String | ```name``` |
+| latMarkerPropName   | latitude property name | Yes | String | ```lat``` |
+| lngMarkerPropName   | longitude property name | Yes | String | ```lng``` |
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Layer Array Object
+```js
+[{
+    label: string, // layer name, don't repeat
+    style: (f) => {
+        // properties -> array of data object
+        const { properties } = f;
+        return Style; // return style to the marker
+    },
+    filters: [
+        {
+          label: string,  // label for the filter
+          color: string,  // hex code
+          action: string, // single value, do not repeat (internal use, will be removed in the future)
+          filter: { 
+            prop: string, // data prop name for the filters
+            value: string // data value wanted
+          }
+        }
+    ]
+}]
+```
 
-### `npm test`
+### Data Array Object
+The data shown is not optional, it is required in your data object.
+```js
+[{
+    ...your data
+    lat: string | number, // the prop name can be changed by latMarkerPropName
+    lng: string | number, // the prop name can be changed by lngMarkerPropName
+    name: string          // the prop name can be changed by multiIdentifier
+}]
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Popup Content
+```js
+// data -> data object
+({ data }) => {
+    return <></>; // return element
+}
+```
 
-### `npm run build`
+### Search
+```js
+// identifier, value to search -> return true or false
+searchElement(string, any);
+```
+```js
+const mapRef = useRef();
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+const result = await ref.current.searchElement('name', 'mateus');
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+return (
+    <LeafletExtended
+    ...props
+    ref={mapRef}
+    searchIdentifiers={['name', 'city']}
+    />
+)
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Installation
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```sh
+npm i --save leaflet-extended
+```

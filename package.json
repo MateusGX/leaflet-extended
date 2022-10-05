@@ -1,7 +1,17 @@
 {
   "name": "leaflet-extended",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MateusGX/leaflet-extended.git"
+  },
+  "keywords": [],
+  "author": "Mateus A. Martins <contact@mateusam.dev> (https://mateusam.dev)",
+  "bugs": {
+    "url": "https://github.com/MateusGX/leaflet-extended/issues"
+  },
+  "homepage": "https://github.com/MateusGX/leaflet-extended",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "sideEffects": false,
@@ -13,7 +23,7 @@
     "react-leaflet": "^2.8.0",
     "react-leaflet-markercluster": "^2.0.0",
     "react-scripts": "5.0.1",
-    "react-select": "^5.4.0",
+    "react-select": "^s5.4.0",
     "web-vitals": "^2.1.4"
   },
   "files": [
