@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/MateusGX/leaflet-extended.git"
   },
-  "keywords": [],
+  "keywords": ["react", "maps", "leaflet"],
   "author": "Mateus A. Martins <contact@mateusam.dev> (https://mateusam.dev)",
   "bugs": {
     "url": "https://github.com/MateusGX/leaflet-extended/issues"
