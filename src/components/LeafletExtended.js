@@ -1,30 +1,55 @@
-import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle } from "react";
+import React, {
+  useEffect, useState, useRef, forwardRef, useImperativeHandle
+} from 'react';
 import PropTypes from 'prop-types';
-import { Map as LeafletMap, TileLayer, LayersControl, GeoJSON, Popup } from 'react-leaflet'
+import {
+  Map as LeafletMap, TileLayer, LayersControl, GeoJSON, Popup
+} from 'react-leaflet';
+import useSupercluster from 'use-supercluster';
 import _ from 'lodash';
 import L from 'leaflet';
-import Select from 'react-select'
+import Select from 'react-select';
 import { nanoid } from 'nanoid';
-import MarkerClusterGroup from 'react-leaflet-markercluster';
-import PopupSelector from "./internal/PopupSelector";
+import PopupSelector from './internal/PopupSelector';
 import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-markercluster/dist/styles.min.css';
 
 const LeafletExtended = forwardRef((props, ref) => {
-
-  const { baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, searchIdentifiers, enablePopup, multiIdentifier, children, circleMarkerStyle, latMarkerPropName, lngMarkerPropName } = props;
+  const {
+    baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, searchIdentifiers, enablePopup, multiIdentifier, children, circleMarkerStyle, latMarkerPropName, lngMarkerPropName
+  } = props;
 
   const mapRef = useRef();
 
-  const [geoJSON, setGeoJSON] = useState(null);
+  const [geoJSON, setGeoJSON] = useState({ type: '', features: [] });
   const [popupInfo, setPopupInfo] = useState(null);
   const [popupSelect, setPopupSelect] = useState(null);
 
   const [bounds, setBounds] = useState([[-29.8258, -51.1481]]);
+  const [detailedBounds, setDetailedBounds] = useState([]);
+  const [zoom, setZoom] = useState(16);
   const [mapLayer, setMapLayer] = useState(mapLayers.length > 0 ? mapLayers[0].label : null);
   const [mapFilter, setMapFilter] = useState(null);
 
   const [searchElements, setSearchElements] = useState(new Map(searchIdentifiers.map(t => [t, new Map()])));
+
+  const { clusters, supercluster } = useSupercluster({
+    points: geoJSON.features,
+    bounds: detailedBounds,
+    zoom,
+    options: { radius: 60, maxZoom: 17 }
+  });
+
+  async function updateMap() {
+    const b = mapRef.current.leafletElement.getBounds();
+    setDetailedBounds([
+      b.getSouthWest().lng,
+      b.getSouthWest().lat,
+      b.getNorthEast().lng,
+      b.getNorthEast().lat
+    ]);
+    setZoom(mapRef.current.leafletElement.getZoom());
+  }
 
   useEffect(() => {
     if (markerData.length === 0) return;
@@ -40,9 +65,9 @@ const LeafletExtended = forwardRef((props, ref) => {
     const dataGroupKeys = Object.keys(dataGroup);
 
     const features = dataGroupKeys.map(key => ({
-      type: "Feature",
+      type: 'Feature',
       geometry: {
-        type: "Point",
+        type: 'Point',
         coordinates: [
           Number(dataGroup[key][0][lngMarkerPropName] || 0),
           Number(dataGroup[key][0][latMarkerPropName] || 0),
@@ -51,10 +76,9 @@ const LeafletExtended = forwardRef((props, ref) => {
       properties: dataGroup[key],
     }));
 
-    const mapSearch = new Map(searchIdentifiers.map(t =>
-      [t,
-        new Map()
-      ]
+    const mapSearch = new Map(searchIdentifiers.map(t => [t,
+      new Map()
+    ]
     ));
 
     features.forEach((f, feature_index) => {
@@ -66,12 +90,13 @@ const LeafletExtended = forwardRef((props, ref) => {
     });
 
     const geoJson = {
-      type: "FeatureCollection",
+      type: 'FeatureCollection',
       features,
     };
 
     setGeoJSON(geoJson);
     setSearchElements(mapSearch);
+    updateMap();
     console.log('map: update');
   }, [latMarkerPropName, lngMarkerPropName, mapFilter, markerData, searchIdentifiers]);
 
@@ -134,6 +159,18 @@ const LeafletExtended = forwardRef((props, ref) => {
 
   }));
 
+  function createClusterIcon(feature) {
+    const count = feature.properties.point_count;
+    const size = count < 100 ? 'small' : count < 1000 ? 'medium' : 'large';
+    const icon = L.divIcon({
+      html: `<div><span>${feature.properties.point_count_abbreviated}</span></div>`,
+      className: `marker-cluster marker-cluster-${size}`,
+      iconSize: L.point(40, 40),
+    });
+
+    return icon;
+  }
+
   return (
     <LeafletMap
       ref={mapRef}
@@ -149,13 +186,12 @@ const LeafletExtended = forwardRef((props, ref) => {
         setMapFilter(null);
         setMapLayer(e.name);
       }}
-
+      onMoveEnd={updateMap}
     >
       <TileLayer
         attribution={baseTileAttribution}
         url={baseTileUrl}
       />
-
       {
         mapLayer && (
           <div className="leaflet-bottom leaflet-left">
@@ -230,28 +266,27 @@ const LeafletExtended = forwardRef((props, ref) => {
       }
       <LayersControl position="topright">
         {
-          mapLayers.map((e, index) => {
-            return (
-              <LayersControl.BaseLayer checked={mapLayer ? mapLayer === e.label : index === 0} name={e.label} key={nanoid()}>
-                <MarkerClusterGroup disableClusteringAtZoom={15}>
-                  <GeoJSON
-                    key={nanoid()}
-                    data={geoJSON}
-                    onclick={(e) => {
-                      const { sourceTarget } = e;
-                      const { feature } = sourceTarget;
-                      setPopupSelect({ value: feature.properties[0][multiIdentifier], label: feature.properties[0][multiIdentifier] });
-                      setPopupInfo(feature);
-                    }}
-                    pointToLayer={(geoPoint, latlng) => {
-                      return L.circleMarker(latlng, circleMarkerStyle);
-                    }}
-                    style={e.style}
-                  />
-                </MarkerClusterGroup>
-              </LayersControl.BaseLayer>
-            )
-          })
+          mapLayers.map((e, index) => (
+            <LayersControl.BaseLayer checked={mapLayer ? mapLayer === e.label : index === 0} name={e.label} key={nanoid()}>
+              <GeoJSON
+                key={nanoid()}
+                data={clusters}
+                onclick={(e) => {
+                  const { sourceTarget } = e;
+                  const { feature } = sourceTarget;
+                  if (feature.properties.cluster) return;
+                  setPopupSelect({ value: feature.properties[0][multiIdentifier], label: feature.properties[0][multiIdentifier] });
+                  setPopupInfo(feature);
+                }}
+                pointToLayer={(geoPoint, latlng) => {
+                  if (geoPoint.properties.cluster) return L.marker(latlng, { icon: createClusterIcon(geoPoint) });
+
+                  return L.circleMarker(latlng, circleMarkerStyle);
+                }}
+                style={e.style}
+              />
+            </LayersControl.BaseLayer>
+          ))
         }
       </LayersControl>
       {(popupInfo && enablePopup) && (
@@ -267,7 +302,8 @@ const LeafletExtended = forwardRef((props, ref) => {
         >
           <div style={{
             paddingTop: 10
-          }}>
+          }}
+          >
             <Select
               options={popupInfo.properties.map(r => ({ value: r[multiIdentifier], label: r[multiIdentifier] }))}
               isSearchable
@@ -277,13 +313,13 @@ const LeafletExtended = forwardRef((props, ref) => {
               styles={{
                 menu: (base) => ({
                   ...base,
-                  width: "max-content",
-                  minWidth: "100%"
+                  width: 'max-content',
+                  minWidth: '100%'
                 }),
                 control: (base) => ({
                   ...base,
-                  width: "max-content",
-                  minWidth: "100%"
+                  width: 'max-content',
+                  minWidth: '100%'
                 }),
               }}
             />
@@ -295,7 +331,8 @@ const LeafletExtended = forwardRef((props, ref) => {
         </Popup>
       )}
       {children}
-    </LeafletMap>);
+    </LeafletMap>
+  );
 });
 
 LeafletExtended.propTypes = {
@@ -310,7 +347,7 @@ LeafletExtended.propTypes = {
   multiIdentifier: PropTypes.string,
   latMarkerPropName: PropTypes.string,
   lngMarkerPropName: PropTypes.string,
-}
+};
 
 LeafletExtended.defaultProps = {
   baseTileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -324,14 +361,12 @@ LeafletExtended.defaultProps = {
     opacity: 1,
     fillOpacity: 1,
     radius: 8,
-    fillColor: "#ff7800",
+    fillColor: '#ff7800',
   },
-  PopupContent: ({ data }) => {
-    return <div>- - -</div>
-  },
+  PopupContent: ({ data }) => <div>- - -</div>,
   latMarkerPropName: 'lat',
   lngMarkerPropName: 'lng'
-}
+};
 
 
 export default React.memo(LeafletExtended);
