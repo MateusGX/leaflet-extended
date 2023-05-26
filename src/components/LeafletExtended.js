@@ -1,18 +1,23 @@
 import React, {
-  useEffect, useState, useRef, forwardRef, useImperativeHandle
+  useEffect, useState, useRef, forwardRef, useImperativeHandle, useCallback
 } from 'react';
 import PropTypes from 'prop-types';
 import {
   Map as LeafletMap, TileLayer, LayersControl, GeoJSON, Popup
 } from 'react-leaflet';
-import useSupercluster from 'use-supercluster';
+import Supercluster from 'supercluster';
 import _ from 'lodash';
+import debounce from 'lodash.debounce';
 import L from 'leaflet';
 import Select from 'react-select';
 import { nanoid } from 'nanoid';
 import PopupSelector from './internal/PopupSelector';
 import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-markercluster/dist/styles.min.css';
+
+function useDebounce(callback, delay) {
+  return useCallback(debounce((...args) => callback(...args), delay), [delay],);
+}
 
 const LeafletExtended = forwardRef((props, ref) => {
   const {
@@ -26,29 +31,27 @@ const LeafletExtended = forwardRef((props, ref) => {
   const [popupSelect, setPopupSelect] = useState(null);
 
   const [bounds, setBounds] = useState([[-29.8258, -51.1481]]);
-  const [detailedBounds, setDetailedBounds] = useState([]);
-  const [zoom, setZoom] = useState(16);
+
   const [mapLayer, setMapLayer] = useState(mapLayers.length > 0 ? mapLayers[0].label : null);
   const [mapFilter, setMapFilter] = useState(null);
 
   const [searchElements, setSearchElements] = useState(new Map(searchIdentifiers.map(t => [t, new Map()])));
 
-  const { clusters, supercluster } = useSupercluster({
-    points: geoJSON.features,
-    bounds: detailedBounds,
-    zoom,
-    options: { radius: 60, maxZoom: 17 }
-  });
+  const [clusters, setClusters] = useState([]);
+  const saveDeboncedClusters = useDebounce(nextValue => setClusters(nextValue), 500);
 
-  async function updateMap() {
+  function updateClusters() {
     const b = mapRef.current.leafletElement.getBounds();
-    setDetailedBounds([
-      b.getSouthWest().lng,
-      b.getSouthWest().lat,
-      b.getNorthEast().lng,
-      b.getNorthEast().lat
-    ]);
-    setZoom(mapRef.current.leafletElement.getZoom());
+    const index = new Supercluster({
+      radius: 40,
+      maxZoom: 17
+    }).load(geoJSON.features);
+    saveDeboncedClusters(index.getClusters([
+      b.getWest(),
+      b.getSouth(),
+      b.getEast(),
+      b.getNorth()
+    ], mapRef.current.leafletElement.getZoom()));
   }
 
   useEffect(() => {
@@ -96,13 +99,11 @@ const LeafletExtended = forwardRef((props, ref) => {
 
     setGeoJSON(geoJson);
     setSearchElements(mapSearch);
-    updateMap();
     console.log('map: update');
   }, [latMarkerPropName, lngMarkerPropName, mapFilter, markerData, searchIdentifiers]);
 
   useEffect(() => {
     if (markerData.length === 0) return;
-    if (geoJSON !== null) return;
     setBounds(markerData.map(d => [d[latMarkerPropName], d[lngMarkerPropName]]));
     console.log('map: update-bounds');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,7 +112,7 @@ const LeafletExtended = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({
 
     async searchElement(search, value) {
-      if (!geoJSON) {
+      if (!geoJSON.features) {
         console.log('search: empty data');
         return false;
       }
@@ -167,7 +168,6 @@ const LeafletExtended = forwardRef((props, ref) => {
       className: `marker-cluster marker-cluster-${size}`,
       iconSize: L.point(40, 40),
     });
-
     return icon;
   }
 
@@ -186,7 +186,7 @@ const LeafletExtended = forwardRef((props, ref) => {
         setMapFilter(null);
         setMapLayer(e.name);
       }}
-      onMoveEnd={updateMap}
+      onMoveEnd={updateClusters}
     >
       <TileLayer
         attribution={baseTileAttribution}
@@ -299,6 +299,7 @@ const LeafletExtended = forwardRef((props, ref) => {
             setPopupInfo(null);
             setPopupSelect(null);
           }}
+          autoPan={false}
         >
           <div style={{
             paddingTop: 10
