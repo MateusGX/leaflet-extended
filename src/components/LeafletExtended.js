@@ -21,7 +21,7 @@ function useDebounce(callback, delay) {
 
 const LeafletExtended = forwardRef((props, ref) => {
   const {
-    baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, searchIdentifiers, enablePopup, multiIdentifier, children, circleMarkerStyle, latMarkerPropName, lngMarkerPropName
+    baseTileUrl, baseTileAttribution, markerData, PopupContent, mapLayers, searchIdentifiers, enablePopup, multiIdentifier, children, circleMarkerStyle, latMarkerPropName, lngMarkerPropName, maxZoomGenClusters
   } = props;
 
   const mapRef = useRef();
@@ -44,7 +44,7 @@ const LeafletExtended = forwardRef((props, ref) => {
     const b = mapRef.current.leafletElement.getBounds();
     const index = new Supercluster({
       radius: 40,
-      maxZoom: 17
+      maxZoom: maxZoomGenClusters
     }).load(geoJSON.features);
     saveDeboncedClusters(index.getClusters([
       b.getWest(),
@@ -348,6 +348,7 @@ LeafletExtended.propTypes = {
   multiIdentifier: PropTypes.string,
   latMarkerPropName: PropTypes.string,
   lngMarkerPropName: PropTypes.string,
+  maxZoomGenClusters: PropTypes.number
 };
 
 LeafletExtended.defaultProps = {
@@ -366,7 +367,8 @@ LeafletExtended.defaultProps = {
   },
   PopupContent: ({ data }) => <div>- - -</div>,
   latMarkerPropName: 'lat',
-  lngMarkerPropName: 'lng'
+  lngMarkerPropName: 'lng',
+  maxZoomGenClusters: 14
 };
 
 
